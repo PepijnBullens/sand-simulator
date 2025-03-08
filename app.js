@@ -30,10 +30,12 @@ const drawGrid = () => {
 let pointerPosition = { x: 0, y: 0 };
 
 const drawPointer = () => {
-    window.addEventListener('mousemove', (event) => {
-        pointerPosition.x = Math.floor(event.offsetX / (cellSize * clusterMultiplier));
-        pointerPosition.y = Math.floor(event.offsetY / (cellSize * clusterMultiplier));
-    });
+    if (!('ontouchstart' in window || navigator.maxTouchPoints)) {
+        window.addEventListener('mousemove', (event) => {
+            pointerPosition.x = Math.floor(event.offsetX / (cellSize * clusterMultiplier));
+            pointerPosition.y = Math.floor(event.offsetY / (cellSize * clusterMultiplier));
+        });
+    }
 };
 
 const updateGrid = () => {
@@ -49,9 +51,11 @@ const updateGrid = () => {
             ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
         }
     }
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(pointerPosition.x * (cellSize * clusterMultiplier), pointerPosition.y * (cellSize * clusterMultiplier), cellSize * clusterMultiplier, cellSize * clusterMultiplier);
+    if (!('ontouchstart' in window || navigator.maxTouchPoints)) {
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pointerPosition.x * (cellSize * clusterMultiplier), pointerPosition.y * (cellSize * clusterMultiplier), cellSize * clusterMultiplier, cellSize * clusterMultiplier);
+    }
 };
 
 drawGrid();
@@ -62,12 +66,19 @@ drawPointer();
 
 
 const testPositions = (x, y) => {
-    if (grid[x][y + 1] !== undefined && grid[x][y + 1][0] === 'E') {
-        return [0, 1];
-    } else if (grid[x - 1] !== undefined && grid[x - 1][y + 1] !== undefined && grid[x - 1][y + 1][0] === 'E') {
-        return [-1, 1];
-    } else if (grid[x + 1] !== undefined && grid[x + 1][y + 1] !== undefined && grid[x + 1][y + 1][0] === 'E') {
-        return [1, 1];
+    const directions = [
+        [0, 1],
+        [1, 1],
+        [-1, 1]
+    ];
+    for (let i = directions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [directions[i], directions[j]] = [directions[j], directions[i]];
+    }
+    for (const [dx, dy] of directions) {
+        if (grid[x + dx] !== undefined && grid[x + dx][y + dy] !== undefined && grid[x + dx][y + dy][0] === 'E') {
+            return [dx, dy];
+        }
     }
     return [0, 0];
 };
@@ -117,21 +128,41 @@ const placeSand = (x, y) => {
 
 let isMouseDown = false;
 
-window.addEventListener('mousedown', (event) => {
-    isMouseDown = true;
-    const x = Math.floor(event.offsetX / cellSize);
-    const y = Math.floor(event.offsetY / cellSize);
-    placeSand(x, y);
-});
+const getEventPosition = (event) => {
+    if (event.touches && event.touches.length > 0) {
+        return {
+            x: Math.floor(event.touches[0].clientX / cellSize),
+            y: Math.floor(event.touches[0].clientY / cellSize)
+        };
+    } else {
+        return {
+            x: Math.floor(event.offsetX / cellSize),
+            y: Math.floor(event.offsetY / cellSize)
+        };
+    }
+};
 
-window.addEventListener('mousemove', (event) => {
+const handlePointerDown = (event) => {
+    isMouseDown = true;
+    const { x, y } = getEventPosition(event);
+    placeSand(x, y);
+};
+
+const handlePointerMove = (event) => {
     if (isMouseDown) {
-        const x = Math.floor(event.offsetX / cellSize);
-        const y = Math.floor(event.offsetY / cellSize);
+        const { x, y } = getEventPosition(event);
         placeSand(x, y);
     }
-});
+};
 
-window.addEventListener('mouseup', () => {
+const handlePointerUp = () => {
     isMouseDown = false;
-});
+};
+
+window.addEventListener('mousedown', handlePointerDown);
+window.addEventListener('mousemove', handlePointerMove);
+window.addEventListener('mouseup', handlePointerUp);
+
+window.addEventListener('touchstart', handlePointerDown);
+window.addEventListener('touchmove', handlePointerMove);
+window.addEventListener('touchend', handlePointerUp);
