@@ -1,10 +1,15 @@
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
+
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const cellSize = 15;
-const clusterMultiplier = 4;
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    drawGrid();
+});
+
 const colors = [
     '#e6d577',
     '#e1d072',
@@ -13,6 +18,51 @@ const colors = [
     '#d1bf61',
     '#ccb95c',
 ]
+
+let randomize = localStorage.getItem('randomize') === 'true' ? true : false;
+let cellSize = localStorage.getItem('cellSize') ? parseInt(localStorage.getItem('cellSize')) : 10;
+let clusterMultiplier = localStorage.getItem('clusterMultiplier') ? parseInt(localStorage.getItem('clusterMultiplier')) : 1;
+
+const reset = () => {
+    location.reload();
+}
+
+const resetButton = document.querySelector('#reset').addEventListener('click', reset);
+
+const setCellSize = () => {
+    const cellSizeInput = document.querySelector('#cell-size');
+    cellSizeInput.value = cellSize;
+    cellSizeInput.addEventListener('input', () => {
+        cellSize = parseInt(cellSizeInput.value);
+        localStorage.setItem('cellSize', cellSize);
+        drawGrid();
+    });
+};
+
+setCellSize();
+
+const setRandomize = () => {
+    const randomizeInput = document.querySelector('#randomize');
+    randomizeInput.checked = randomize;
+    randomizeInput.addEventListener('change', () => {
+        randomize = randomizeInput.checked;
+        localStorage.setItem('randomize', randomize);
+    });
+};
+
+setRandomize();
+
+const setClusterMultiplier = () => {
+    const clusterMultiplierInput = document.querySelector('#cluster-multiplier');
+    clusterMultiplierInput.value = clusterMultiplier;
+    clusterMultiplierInput.addEventListener('input', () => {
+        clusterMultiplier = parseInt(clusterMultiplierInput.value);
+        localStorage.setItem('clusterMultiplier', clusterMultiplier);
+    });
+};
+
+setClusterMultiplier();
+
 
 let grid = [];
 
@@ -71,10 +121,14 @@ const testPositions = (x, y) => {
         [1, 1],
         [-1, 1]
     ];
-    for (let i = directions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [directions[i], directions[j]] = [directions[j], directions[i]];
+
+    if(randomize) {
+        for (let i = directions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [directions[i], directions[j]] = [directions[j], directions[i]];
+        }
     }
+
     for (const [dx, dy] of directions) {
         if (grid[x + dx] !== undefined && grid[x + dx][y + dy] !== undefined && grid[x + dx][y + dy][0] === 'E') {
             return [dx, dy];
@@ -94,18 +148,38 @@ const updateSand = (x, y, newPosition) => {
         }
     }
 };
-const update = setInterval(() => {
-    for(let x = 0; x < grid.length; x++) {
-        for(let y = 0; y < grid[x].length; y++) {
-            if(grid[x][y][0] === 'S') {
-                const newPosition = testPositions(x, y);
-                if(newPosition[0] !== 0 || newPosition[1] !== 0) updateSand(x, y, newPosition);
-            };
-        }
-    }
+let fps = localStorage.getItem('fps') ? parseInt(localStorage.getItem('fps')) : 60;
+let lastUpdateTime = 0;
 
-    updateGrid();
-}, 100);
+const setFps = () => {
+    const fpsInput = document.querySelector('#fps');
+    fpsInput.value = Math.max(1, Math.min(60, fps));
+    fpsInput.addEventListener('input', () => {
+        fps = parseInt(fpsInput.value);
+        localStorage.setItem('fps', fps);
+    });
+};
+
+setFps();
+
+const update = (timestamp) => {
+    if (timestamp - lastUpdateTime >= 1000 / fps) {
+        lastUpdateTime = timestamp;
+        for(let x = 0; x < grid.length; x++) {
+            for(let y = 0; y < grid[x].length; y++) {
+                if(grid[x][y][0] === 'S') {
+                    const newPosition = testPositions(x, y);
+                    if(newPosition[0] !== 0 || newPosition[1] !== 0) updateSand(x, y, newPosition);
+                };
+            }
+        }
+
+        updateGrid();
+    }
+    requestAnimationFrame(update);
+};
+
+requestAnimationFrame(update);
 
 
 
